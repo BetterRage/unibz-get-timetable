@@ -4,8 +4,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.by import By
 
 year = "2022"
-url = "https://www.unibz.it/en/timetable/?sourceId=unibz&department=370&degree=13756&fromDate=2022-09-26&toDate=2022-12-31&page="
-pages = 9
+timetableurl = "https://www.unibz.it/en/timetable/?sourceId=unibz&department=22&degree=13584%2C13618&studyPlan=18234%2C18363&fromDate=2022-09-26&toDate=2022-12-31"
 
 MonthsCSV = {
     'Jan': '01',
@@ -91,13 +90,13 @@ def GetDateFromDay(day):
 
 
 def GetCoursesOnDay(day):
-    courses = day.find_elements(By.CLASS_NAME, "t-scitec")
+    courses = day.find_elements(By.CLASS_NAME, "u-cf")
     return courses
 
 
 def GetRoomFromCourse(course):
     room = course.find_element(
-        By.CSS_SELECTOR, "p[class='u-push-btm-quarter u-tt-caps u-fs-sm u-c-theme u-fw-bold']")
+        By.CLASS_NAME, "u-push-btm-quarter")
     return room.text
 
 
@@ -127,16 +126,31 @@ def GetNameFromCourse(course):
     return name
 
 
-def GetAllCourses(url, pages):
+def GetPagesFromUrl(driver):
+    try:
+        pages = driver.find_element(By.CLASS_NAME, "is-last").text
+    except:
+        pages = 0
+
+    return int(pages)
+
+
+def GetAllCourses(url):
     cnt = 0
     c = []
+    urls = []
     driver = webdriver.Firefox()
+    driver.get(url)
+    pages = GetPagesFromUrl(driver)
 
-    for i in range(1, pages+1):
-        urlpage = url.replace("page=", "page={}".format(i))
+    if (pages == 0):
+        urls.append(url)
+    else:
+        for i in range(pages):
+            urls.append("{}&page={}".format(url, i+1))
 
-        driver.get(urlpage)
-
+    for i in urls:
+        driver.get(i)
         days = GetDaysFromPage(driver)
         for day in days:
             date = GetDateFromDay(day)
@@ -147,13 +161,16 @@ def GetAllCourses(url, pages):
                 type = GetTypeFromCourse(course)
                 teacher = GetTeacherFromCourse(course)
                 name = GetNameFromCourse(course)
-                c.append(Course(day=date, room=room, time=time,
-                                name=name, teacher=teacher, type=type))
+                thiscourse = Course(day=date, room=room, time=time,
+                                    name=name, teacher=teacher, type=type)
+                c.append(thiscourse)
+                thiscourse.print()
+
     return c
 
 
 c = GetAllCourses(
-    url, pages)
+    timetableurl)
 
 f = open("courses.csv", mode="+w")
 
